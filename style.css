@@ -7,24 +7,18 @@ html,
 body {
   height: 100%;
   width: 100%;
-  font-family: "Poppins", sans-serif;
-  background-color: #222738;
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #a8b0c0;
 }
 canvas {
-  background-color: #181825;
+  outline: black 3px solid;
 }
 #author {
   display: flex;
-  width: 100%;
-  height: 100%;
   justify-content: center;
 }
 #ui {
-  align-items: center;
   font-size: 10px;
   margin-left: 10px;
 }
@@ -32,6 +26,7 @@ canvas {
 #score {
   display: flex;
   margin-top: 20px;
+  margin-left: 20px;
   font-size: 30px;
   font-weight: 800;
 }
@@ -42,13 +37,10 @@ canvas {
   font-size: 11px;
   padding: 10px 20px;
   background: #6e7888;
-  border-radius: 20px;
   font-weight: 800;
-  transform: rotate(270deg);
+  margin-right: 100px;
 }
-#replay:hover {
-  background: #4cffd7;
-}
+
 .wrapper {
   display: flex;
   justify-content: center;

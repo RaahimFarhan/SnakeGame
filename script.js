@@ -5,30 +5,26 @@ let dom_score = document.querySelector("#score");
 // create canvas
 let dom_canvas = document.createElement("canvas");
 document.querySelector("#canvas").appendChild(dom_canvas);
-let CTX = dom_canvas.getContext("2d");
-
-// const W = (dom_canvas.width = 750);
-// const H = (dom_canvas.height = 750);
+let c = dom_canvas.getContext("2d");
 
 let W = ~~(dom_canvas.width = screen.height / 1.5);
 let H = ~~(dom_canvas.height = screen.height / 1.5);
 
 // create variables
 let snake,
-  food,
-  cells = 20,
+  cellz = 16,
   cellSize,
   isGameOver = false,
   tails = [],
-  score = 00,
-  maxScore = window.localStorage.getItem("maxScore") || undefined,
+  score = 0,
+  highScore = window.localStorage.getItem("highScore") || 0,
   particles = [],
-  splashingParticleCount = 20,
+  BombingParticleCount = 16,
   cellsCount,
   requestID;
 
-// create direction and speed and  collision
-let helpers = {
+// create direction and speed
+let basics = {
   Vec: class {
     constructor(x, y) {
       this.x = x;
@@ -37,58 +33,16 @@ let helpers = {
     add(v) {
       this.x += v.x;
       this.y += v.y;
-      return this;
-    }
-    mult(v) {
-      if (v instanceof helpers.Vec) {
-        this.x *= v.x;
-        this.y *= v.y;
-        return this;
-      } else {
-        this.x *= v;
-        this.y *= v;
-        return this;
-      }
     }
   },
-  isCollision(v1, v2) {
+  isCollide(v1, v2) {
     return v1.x == v2.x && v1.y == v2.y;
-  },
-
-  // clean up particles and draw grid
-  garbageCollector() {
-    for (let i = 0; i < particles.length; i++) {
-      if (particles[i].size <= 0) {
-        particles.splice(i, 1);
-      }
-    }
-  },
-  drawGrid() {
-    CTX.lineWidth = 1;
-    CTX.strokeStyle = "#232332";
-    CTX.shadowBlur = 0;
-    for (let i = 1; i < cells; i++) {
-      let f = (W / cells) * i;
-      CTX.beginPath();
-      CTX.moveTo(f, 0);
-      CTX.lineTo(f, H);
-      CTX.stroke();
-      CTX.beginPath();
-      CTX.moveTo(0, f);
-      CTX.lineTo(W, f);
-      CTX.stroke();
-      CTX.closePath();
-    }
   },
 };
 
 // check if key is being pressed prevent turning 180 degrees
 let KEY = {
-  ArrowUp: false,
-  ArrowRight: false,
-  ArrowDown: false,
-  ArrowLeft: false,
-  resetState() {
+  resetKeys() {
     this.ArrowUp = false;
     this.ArrowRight = false;
     this.ArrowDown = false;
@@ -104,7 +58,7 @@ let KEY = {
         if (e.key === "ArrowRight" && this.ArrowLeft) return;
         this[e.key] = true;
         Object.keys(this)
-          .filter(f => f !== e.key && f !== "listen" && f !== "resetState")
+          .filter(f => f !== e.key && f !== "listen" && f !== "resetKeys")
           .forEach(k => {
             this[k] = false;
           });
@@ -115,171 +69,166 @@ let KEY = {
 };
 // create class
 class Snake {
-  constructor(i) {
-    this.pos = new helpers.Vec(W / 2, H / 2);
-    this.dir = new helpers.Vec(0, 0);
-    this.index = i;
+  constructor() {
+    this.posit = new basics.Vec(W / 2, H / 2);
+    this.direction = new basics.Vec(0, 0);
     this.delay = 5;
-    this.size = W / cells;
-    this.color = "white";
-    this.history = [];
+    this.size = W / cellz;
+    this.color = "black";
+    this.oldLoc = [];
     this.total = 1;
   }
   draw() {
     //draw snake according to position and snake size
-    let { x, y } = this.pos;
-    CTX.fillStyle = this.color;
-    CTX.fillRect(x, y, this.size, this.size);
+    let { x, y } = this.posit;
+    c.fillStyle = this.color;
+    c.fillRect(x, y, this.size, this.size);
     if (this.total >= 2) {
-      for (let i = 0; i < this.history.length - 1; i++) {
-        let { x, y } = this.history[i];
-        CTX.lineWidth = 1;
-        CTX.fillStyle = "rgba(225,225,225,1)";
-        CTX.fillRect(x, y, this.size, this.size);
+      for (let i = 0; i < this.oldLoc.length - 1; i++) {
+        let { x, y } = this.oldLoc[i];
+        c.lineWidth = 1;
+        c.fillStyle = "rgba(225,225,225,1)";
+        c.fillRect(x, y, this.size, this.size);
       }
     }
   }
-  //end game if snake touches wall
-  walls() {
-    let { x, y } = this.pos;
-    if (x + cellSize > W) {
-      isGameOver = true;
-    }
-    if (y + cellSize > W) {
-      isGameOver = true;
-    }
-    if (y < 0) {
-      isGameOver = true;
-    }
-    if (x < 0) {
+  //end game if snake touches border
+  borders() {
+    let { x, y } = this.posit;
+    if (x + cellSize > W || y + cellSize > W || y < 0 || x < 0) {
       isGameOver = true;
     }
   }
   // config keybinds and snake direction
   controls() {
-    let dir = this.size;
+    let direction = this.size;
     if (KEY.ArrowUp) {
-      this.dir = new helpers.Vec(0, -dir);
+      this.direction = new basics.Vec(0, -direction);
     }
     if (KEY.ArrowDown) {
-      this.dir = new helpers.Vec(0, dir);
+      this.direction = new basics.Vec(0, direction);
     }
     if (KEY.ArrowLeft) {
-      this.dir = new helpers.Vec(-dir, 0);
+      this.direction = new basics.Vec(-direction, 0);
     }
     if (KEY.ArrowRight) {
-      this.dir = new helpers.Vec(dir, 0);
+      this.direction = new basics.Vec(direction, 0);
     }
   }
   //end game if snake bumps into itself
-  selfCollision() {
-    for (let i = 0; i < this.history.length; i++) {
-      let p = this.history[i];
-      if (helpers.isCollision(this.pos, p)) {
+  selfCollide() {
+    for (let i = 0; i < this.oldLoc.length; i++) {
+      let p = this.oldLoc[i];
+      if (basics.isCollide(this.posit, p)) {
         isGameOver = true;
       }
     }
   }
   //continuously draw and preform checks
   update() {
-    this.walls();
+    this.borders();
     this.draw();
     this.controls();
     if (!this.delay--) {
-      if (helpers.isCollision(this.pos, food.pos)) {
-        incrementScore();
-        particleSplash();
-        food.spawn();
+      if (basics.isCollide(this.posit, apples.posit)) {
+        addScore();
+        particleBomb();
+        apples.spawn();
         this.total++;
       }
-      this.history[this.total - 1] = new helpers.Vec(this.pos.x, this.pos.y);
+      this.oldLoc[this.total - 1] = new basics.Vec(this.posit.x, this.posit.y);
       for (let i = 0; i < this.total - 1; i++) {
-        this.history[i] = this.history[i + 1];
+        this.oldLoc[i] = this.oldLoc[i + 1];
       }
-      this.pos.add(this.dir);
+      this.posit.add(this.direction);
       this.delay = 5;
-      this.total > 3 ? this.selfCollision() : null;
+      this.total > 3 ? this.selfCollide() : null;
     }
   }
 }
 
-class Food {
+class apples {
   constructor() {
     //randomize initial apple position
-    this.pos = new helpers.Vec(
-      ~~(Math.random() * cells) * cellSize,
-      ~~(Math.random() * cells) * cellSize
+    this.posit = new basics.Vec(
+      ~~(Math.random() * cellz) * cellSize,
+      ~~(Math.random() * cellz) * cellSize
     );
     this.color = "rgb(255, 0, 0)";
     this.size = cellSize;
   }
   draw() {
-    let { x, y } = this.pos;
-    CTX.fillStyle = this.color;
-    CTX.fillRect(x, y, this.size, this.size);
+    let { x, y } = this.posit;
+    c.fillStyle = this.color;
+    c.fillRect(x, y, this.size, this.size);
   }
   spawn() {
     // randomize new apple spawn
-    let randX = ~~(Math.random() * cells) * this.size;
-    let randY = ~~(Math.random() * cells) * this.size;
-    for (let path of snake.history) {
-      if (helpers.isCollision(new helpers.Vec(randX, randY), path)) {
+    let randX = ~~(Math.random() * cellz) * this.size;
+    let randY = ~~(Math.random() * cellz) * this.size;
+    for (let path of snake.oldLoc) {
+      if (basics.isCollide(new basics.Vec(randX, randY), path)) {
         return this.spawn();
       }
     }
     this.color = "rgb(255, 0, 0)";
-    this.pos = new helpers.Vec(randX, randY);
+    this.posit = new basics.Vec(randX, randY);
   }
 }
 
 class Particle {
-  constructor(pos, color, size, vel) {
-    this.pos = pos;
+  constructor(posit, color, size, velocity) {
+    this.posit = posit;
     this.color = color;
-    this.size = Math.abs(size / 2);
-    this.gravity = -0.2;
-    this.vel = vel;
+    this.size = Math.abs(size / 3);
+    this.velocity = velocity;
   }
   draw() {
-    let { x, y } = this.pos;
+    let { x, y } = this.posit;
     this.color = "rgb(255, 0, 0)";
-    CTX.fillRect(x, y, this.size, this.size);
+    c.fillRect(x, y, this.size, this.size);
   }
   update() {
     // make the particles fall
     this.draw();
     this.size -= 0.3;
-    this.pos.add(this.vel);
-    this.vel.y -= this.gravity;
+    this.posit.add(this.velocity);
   }
 }
 
 // add score
-function incrementScore() {
+function addScore() {
   score++;
   dom_score.innerText = score.toString();
 }
 
-function particleSplash() {
+function particleBomb() {
   // make particles explode
-  for (let i = 0; i < splashingParticleCount; i++) {
-    let vel = new helpers.Vec(Math.random() * 6 - 3, Math.random() * 6 - 3);
-    let position = new helpers.Vec(food.pos.x, food.pos.y);
-    particles.push(new Particle(position, "rgb(255, 0, 0)", food.size, vel));
+  for (let i = 0; i < BombingParticleCount; i++) {
+    let velocity = new basics.Vec(Math.random() * 6 - 3, Math.random() * 6 - 3);
+    let position = new basics.Vec(apples.posit.x, apples.posit.y);
+    particles.push(
+      new Particle(position, "rgb(255, 0, 0)", apples.size, velocity)
+    );
   }
 }
 
 // clean canvas for animation
 function clear() {
-  CTX.clearRect(0, 0, W, H);
+  c.clearRect(0, 0, W, H);
+  for (let i = 0; i < particles.length; i++) {
+    if (particles[i].size <= 0) {
+      particles.splice(i, 1);
+    }
+  }
 }
 
 function initialize() {
   KEY.listen();
-  cellsCount = cells * cells;
-  cellSize = W / cells;
+  cellsCount = cellz * cellz;
+  cellSize = W / cellz;
   snake = new Snake();
-  food = new Food();
+  apples = new apples();
   dom_replay.addEventListener("click", reset);
   loop();
 }
@@ -289,13 +238,11 @@ function loop() {
   clear();
   if (!isGameOver) {
     requestID = setTimeout(loop, 1000 / 60);
-    helpers.drawGrid();
     snake.update();
-    food.draw();
+    apples.draw();
     for (let p of particles) {
       p.update();
     }
-    helpers.garbageCollector();
   } else {
     clear();
     gameOver();
@@ -303,25 +250,24 @@ function loop() {
 }
 // if game ends display game over screen
 function gameOver() {
-  maxScore ? null : (maxScore = score);
-  score > maxScore ? (maxScore = score) : null;
-  window.localStorage.setItem("maxScore", maxScore);
-  CTX.fillStyle = "#4cffd7";
-  CTX.textAlign = "center";
-  CTX.font = "bold 30px Poppins, sans-serif";
-  CTX.fillText("GAME OVER", W / 2, H / 2);
-  CTX.font = "15px Poppins, sans-serif";
-  CTX.fillText(`SCORE   ${score}`, W / 2, H / 2 + 60);
-  CTX.fillText(`MAXSCORE   ${maxScore}`, W / 2, H / 2 + 80);
+  highScore ? null : (highScore = score);
+  score > highScore ? (highScore = score) : null;
+  window.localStorage.setItem("highScore", highScore);
+  c.textAlign = "center";
+  c.font = "bold 30px Poppins, sans-serif";
+  c.fillText("GAME OVER", W / 2, H / 2);
+  c.font = "15px Poppins, sans-serif";
+  c.fillText(`SCORE:   ${score}`, W / 2, H / 2 + 50);
+  c.fillText(`HighSCORE:   ${highScore}`, W / 2, H / 2 + 80);
 }
 
 // when reset button is pressed reset game
 function reset() {
-  dom_score.innerText = "00";
-  score = "00";
+  dom_score.innerText = "0";
+  score = "0";
   snake = new Snake();
-  food.spawn();
-  KEY.resetState();
+  apples.spawn();
+  KEY.resetKeys();
   isGameOver = false;
   clearTimeout(requestID);
   loop();
