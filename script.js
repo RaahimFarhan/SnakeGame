@@ -154,7 +154,7 @@ class apples {
       ~~(Math.random() * cellz) * cellSize,
       ~~(Math.random() * cellz) * cellSize
     );
-    this.color = "rgb(255, 0, 0)";
+    this.color = "rgb(0, 255, 0)";
     this.size = cellSize;
   }
   draw() {
@@ -171,7 +171,6 @@ class apples {
         return this.spawn();
       }
     }
-    this.color = "rgb(255, 0, 0)";
     this.posit = new basics.Vec(randX, randY);
   }
 }
@@ -185,7 +184,7 @@ class Poison {
   }
   draw() {
     let { x, y } = this.posit;
-    this.color = "rgb(0, 255, 0)";
+    this.color = "rgb(255, 0, 0)";
     c.fillStyle = this.color;
     c.fillRect(x, y, this.size, this.size);
   }
@@ -229,7 +228,7 @@ function particleBomb() {
     let velocity = new basics.Vec(Math.random() * 6 - 3, Math.random() * 6 - 3);
     let position = new basics.Vec(apples.posit.x, apples.posit.y);
     particles.push(
-      new Particle(position, "rgb(255, 0, 0)", apples.size, velocity)
+      new Particle(position, "rgb(0, 255, 0)", apples.size, velocity)
     );
   }
 }
@@ -314,8 +313,6 @@ function loop() {
 }
 // if game ends display game over screen
 function gameOver() {
-  clearInterval(poisInterval);
-  clearInterval(poisonTimeInterval);
   highScore ? null : (highScore = score);
   score > highScore ? (highScore = score) : null;
   window.localStorage.setItem("highScore", highScore);
@@ -330,6 +327,8 @@ function gameOver() {
 
 // when reset button is pressed reset game
 function reset() {
+  clearInterval(poisInterval);
+  clearInterval(poisonTimeInterval);
   poisonTimer = 2500;
   poisInterval = setInterval(spawnPoisons, poisonTimer);
   poisonTimeInterval = setInterval(poisonTimeChange, 2500);
